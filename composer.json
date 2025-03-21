@@ -5,23 +5,22 @@
     "license": "MIT",
     "autoload": {
         "psr-4": {
-            "TimBogdanov\\Xui\\": "src/"
+            "Timbogdanov\\Xui\\": "src/"
         }
     },
     "require": {
         "php": "^7.3|^8.0",
-        "illuminate/support": "^8.0|^9.0|^10.0|^11.0|^12.0",
+        "illuminate/support": "^8.0|^9.0|^10.0|^12.0",
         "guzzlehttp/guzzle": "^7.0",
-        "nesbot/carbon": "^2.0"
+        "nesbot/carbon": "^2.0|^3.0"
     },
-
     "extra": {
         "laravel": {
             "providers": [
-                "TimBogdanov\\Xui\\XuiServiceProvider"
+                "Timbogdanov\\Xui\\XuiServiceProvider"
             ],
             "aliases": {
-                "Xui": "TimBogdanov\\Xui\\Facades\\Xui"
+                "Xui": "Timbogdanov\\Xui\\Facades\\Xui"
             }
         }
     },
