@@ -1,0 +1,29 @@
+{
+    "name": "timbogdanov/xui",
+    "description": "Laravel package to handle 3x‑ui panel connections",
+    "type": "library",
+    "license": "MIT",
+    "autoload": {
+        "psr-4": {
+            "TimBogdanov\\Xui\\": "src/"
+        }
+    },
+    "require": {
+        "php": "^7.3|^8.0",
+        "illuminate/support": "^8.0|^9.0|^10.0",
+        "guzzlehttp/guzzle": "^7.0",
+        "nesbot/carbon": "^2.0"
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "TimBogdanov\\Xui\\XuiServiceProvider"
+            ],
+            "aliases": {
+                "Xui": "TimBogdanov\\Xui\\Facades\\Xui"
+            }
+        }
+    },
+    "minimum-stability": "dev",
+    "prefer-stable": true
+}
