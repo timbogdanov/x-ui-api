@@ -10,6 +10,9 @@ use Illuminate\Support\Str;
 
 class XuiService
 {
+    private const LOGIN_COOKIE_NAME = '3x-ui';
+    private const BASE_INBOUND_ENDPOINT = 'panel/api/inbounds/';
+
     protected string $host;
     protected string $port;
     protected string $path;
@@ -28,9 +31,23 @@ class XuiService
     }
 
     /**
-     * Get a valid session cookie for the x‑ui API.
-     *
-     * @return string|null
+     * Returns the full API URL for a given endpoint.
+     */
+    private function buildUrl(string $endpoint): string
+    {
+        return "https://{$this->host}:{$this->port}/{$this->path}/{$endpoint}";
+    }
+
+    /**
+     * Resolves the inbound ID to use.
+     */
+    private function resolveInbound(?string $inboundId): string
+    {
+        return $inboundId ?? $this->inboundId;
+    }
+
+    /**
+     * Retrieves and caches a valid session cookie.
      */
     private function getSessionCookie(): ?string
     {
@@ -38,8 +55,7 @@ class XuiService
             return Cache::get('xui_session');
         }
 
-        $url = "https://{$this->host}:{$this->port}/{$this->path}/login";
-        $response = Http::asForm()->post($url, [
+        $response = Http::asForm()->post($this->buildUrl('login'), [
             'username' => $this->username,
             'password' => $this->password,
         ]);
@@ -53,24 +69,19 @@ class XuiService
         }
 
         foreach ($response->cookies() as $cookie) {
-            if ($cookie->getName() === '3x-ui') {
+            if ($cookie->getName() === self::LOGIN_COOKIE_NAME) {
                 $sessionId = $cookie->getValue();
                 Cache::put('xui_session', $sessionId, now()->addHour());
                 return $sessionId;
             }
         }
 
-        Log::error('XuiService: Login successful but 3x-ui cookie is missing.');
+        Log::error('XuiService: Login succeeded but cookie is missing.');
         return null;
     }
 
     /**
-     * Make a GET or POST request to the x‑ui API.
-     *
-     * @param string $method (GET or POST)
-     * @param string $endpoint
-     * @param array $payload
-     * @return array
+     * Makes a GET or POST request to the x‑ui API.
      */
     private function makeRequest(string $method, string $endpoint, array $payload = []): array
     {
@@ -79,9 +90,8 @@ class XuiService
             return ['error' => 'Login failed'];
         }
 
-        $url = "https://{$this->host}:{$this->port}/{$this->path}/{$endpoint}";
-        $request = Http::withHeaders(['Cookie' => "3x-ui={$sessionCookie}"]);
-
+        $url = $this->buildUrl($endpoint);
+        $request = Http::withHeaders(['Cookie' => self::LOGIN_COOKIE_NAME . "={$sessionCookie}"]);
         $response = ($method === 'POST')
             ? $request->post($url, $payload)
             : $request->get($url);
@@ -99,30 +109,21 @@ class XuiService
 
     /**
      * Retrieve all clients for a given inbound.
-     *
-     * @param string|null $inboundId
-     * @return array
      */
     public function getAllClients(?string $inboundId = null): array
     {
-        $inboundId = $inboundId ?? $this->inboundId;
-        return $this->makeRequest('GET', 'panel/api/inbounds/get/' . $inboundId);
+        $inbound = $this->resolveInbound($inboundId);
+        return $this->makeRequest('GET', self::BASE_INBOUND_ENDPOINT . "get/{$inbound}");
     }
 
     /**
-     * Retrieve a user by their Telegram ID.
-     *
-     * @param int $tgId
-     * @param string|null $inboundId
-     * @return array|null
+     * Retrieve a client by their Telegram ID.
      */
     public function getClientByTgId(int $tgId, ?string $inboundId = null)
     {
         $response = $this->getAllClients($inboundId);
-
         if (isset($response['obj']['settings'])) {
             $settings = json_decode($response['obj']['settings'], true);
-
             if (isset($settings['clients']) && is_array($settings['clients'])) {
                 $clientsByTgId = array_column($settings['clients'], null, 'tgId');
                 if (isset($clientsByTgId[$tgId])) {
@@ -134,139 +135,76 @@ class XuiService
     }
 
     /**
-     * Get traffic data for a specific user by UUID.
-     *
-     * @param string $uuid
-     * @return array
+     * Get traffic data for a client based on UUID.
      */
     public function getTrafficByUuid(string $uuid): array
     {
-        return $this->makeRequest('GET', "panel/api/inbounds/getClientTrafficsById/{$uuid}");
+        return $this->makeRequest('GET', self::BASE_INBOUND_ENDPOINT . "getClientTrafficsById/{$uuid}");
     }
 
     /**
-     * Update an existing user based on UUID.
-     *
-     * @param array $userData
-     * @param string|null $inboundId
-     * @return array
+     * Updates an existing client.
      */
     public function updateClient(array $userData, ?string $inboundId = null): array
     {
-        $inboundId = $inboundId ?? $this->inboundId;
-
-        $client = [];
-        if (isset($userData['uuid']))     $client['id']        = $userData['uuid'];
-        if (isset($userData['flow']))     $client['flow']      = $userData['flow'];
-        if (isset($userData['email']))    $client['email']     = $userData['email'];
-        if (isset($userData['tgId']))     $client['tgId']      = $userData['tgId'];
-        if (isset($userData['limitIp']))  $client['limitIp']   = $userData['limitIp'];
-        if (isset($userData['totalGB']))  $client['totalGB']   = $userData['totalGB'];
-        if (isset($userData['expiryTime'])) $client['expiryTime'] = $userData['expiryTime'];
-        if (isset($userData['enable']))   $client['enable']    = $userData['enable'];
-        if (isset($userData['subId']))    $client['subId']     = $userData['subId'];
-        if (isset($userData['reset']))    $client['reset']     = $userData['reset'];
-
-        $payload = [
-            'id'       => (int)$inboundId,
-            'settings' => json_encode([
-                'clients' => [$client]
-            ])
+        $inbound = $this->resolveInbound($inboundId);
+        $mapping = [
+            'uuid'       => 'id',
+            'flow'       => 'flow',
+            'email'      => 'email',
+            'tgId'       => 'tgId',
+            'limitIp'    => 'limitIp',
+            'totalGB'    => 'totalGB',
+            'expiryTime' => 'expiryTime',
+            'enable'     => 'enable',
+            'subId'      => 'subId',
+            'reset'      => 'reset',
         ];
-
-        return $this->makeRequest('POST', "panel/api/inbounds/updateClient/{$userData['uuid']}", $payload);
+        $client = [];
+        foreach ($mapping as $inputKey => $clientKey) {
+            if (isset($userData[$inputKey])) {
+                $client[$clientKey] = $userData[$inputKey];
+            }
+        }
+        $payload = [
+            'id'       => (int)$inbound,
+            'settings' => json_encode(['clients' => [$client]]),
+        ];
+        return $this->makeRequest('POST', self::BASE_INBOUND_ENDPOINT . "updateClient/{$userData['uuid']}", $payload);
     }
 
     /**
-     * Add a new user.
-     *
-     * @param array $userData
-     * @param string|null $inboundId
-     * @return array
+     * Adds a new client.
      */
     public function addClient(array $userData, ?string $inboundId = null): array
     {
-        $inboundId = $inboundId ?? $this->inboundId;
-
-        $client = [];
-        $client['flow']        = $userData['flow']       ?? 'xtls-rprx-vision';
-        $client['email']       = $userData['email']      ?? Str::random(10);
-        $client['limitIp']     = $userData['limitIp']    ?? 1;
-        $client['totalGB']     = $userData['totalGB']    ?? 0;
-        $client['expiryTime']  = $userData['expiryTime'] ?? 0;
-        $client['enable']      = $userData['enable']     ?? false;
-        if (isset($userData['tgId'])) {
-            $client['tgId'] = $userData['tgId'];
-        }
-        $client['subId'] = $userData['subId'] ?? (string) Str::uuid();
-        $client['reset'] = $userData['reset'] ?? 0;
-        $client['id']    = $userData['uuid'];
-
-        $payload = [
-            'id'       => (int)$inboundId,
-            'settings' => json_encode([
-                'clients' => [$client]
-            ])
+        $inbound = $this->resolveInbound($inboundId);
+        $client = [
+            'flow'       => $userData['flow']       ?? 'xtls-rprx-vision',
+            'email'      => $userData['email']      ?? Str::random(10),
+            'limitIp'    => $userData['limitIp']    ?? 1,
+            'totalGB'    => $userData['totalGB']    ?? 0,
+            'expiryTime' => $userData['expiryTime'] ?? 0,
+            'enable'     => $userData['enable']     ?? false,
+            'tgId'       => $userData['tgId']       ?? null,
+            'subId'      => $userData['subId']      ?? (string)Str::uuid(),
+            'reset'      => $userData['reset']      ?? 0,
+            'id'         => $userData['uuid'],
         ];
-
-        return $this->makeRequest('POST', 'panel/api/inbounds/addClient', $payload);
+        $payload = [
+            'id'       => (int)$inbound,
+            'settings' => json_encode(['clients' => [$client]]),
+        ];
+        return $this->makeRequest('POST', self::BASE_INBOUND_ENDPOINT . 'addClient', $payload);
     }
 
     /**
-     * Delete an existing user.
-     *
-     * @param string $uuid
-     * @param string|null $inboundId
-     * @return array
+     * Deletes an existing client.
      */
     public function deleteClient(string $uuid, ?string $inboundId = null): array
     {
-        $inboundId = $inboundId ?? $this->inboundId;
-
-        // Assuming the API expects a POST request for deletion.
-        $payload = [
-            'id' => (int)$inboundId,
-        ];
-
-        return $this->makeRequest('POST', "panel/api/inbounds/deleteClient/{$uuid}", $payload);
-    }
-
-    /**
-     * Re-synchronize (create or update) a user based on their Telegram ID.
-     *
-     * @param object $user
-     * @param string|null $inboundId
-     * @return void
-     */
-    public function reSync($user, ?string $inboundId = null): void
-    {
-        $inboundId = $inboundId ?? $this->inboundId;
-        $ends_at = $user->ends_at ? Carbon::parse($user->ends_at)->timestamp * 1000 : 0;
-
-        $userData = [
-            'uuid'       => $user->uuid,
-            'flow'       => 'xtls-rprx-vision',
-            'email'      => $user->email,
-            'tgId'       => $user->telegram_id,
-            'limitIp'    => $user->limitIp ?? 1,
-            'totalGB'    => $user->totalGB ?? 0,
-            'expiryTime' => $ends_at,
-            'enable'     => $user->is_enabled ?? true,
-            'subId'      => $user->subscription_link,
-            'reset'      => $user->reset ?? 0,
-        ];
-
-        $existsInXui = $this->getClientByTgId($user->telegram_id, $inboundId);
-
-        if ($existsInXui) {
-            Log::info('Updating existing user -> ' . $user->name);
-            $response = $this->updateClient($userData, $inboundId);
-        } else {
-            Log::info('Creating new user -> ' . $user->name);
-            $response = $this->addClient($userData, $inboundId);
-        }
-
-        // You can log or handle the $response as needed.
-        Log::info('x‑ui response', $response);
+        $inbound = $this->resolveInbound($inboundId);
+        $payload = ['id' => (int)$inbound];
+        return $this->makeRequest('POST', self::BASE_INBOUND_ENDPOINT . "deleteClient/{$uuid}", $payload);
     }
 }
