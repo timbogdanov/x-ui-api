@@ -116,7 +116,7 @@ class XuiService
      * @param string|null $inboundId
      * @return array|null
      */
-    public function getUserByTgId(int $tgId, ?string $inboundId = null)
+    public function getClientByTgId(int $tgId, ?string $inboundId = null)
     {
         $response = $this->getAllClients($inboundId);
 
@@ -151,7 +151,7 @@ class XuiService
      * @param string|null $inboundId
      * @return array
      */
-    public function updateUser(array $userData, ?string $inboundId = null): array
+    public function updateClient(array $userData, ?string $inboundId = null): array
     {
         $inboundId = $inboundId ?? $this->inboundId;
 
@@ -184,7 +184,7 @@ class XuiService
      * @param string|null $inboundId
      * @return array
      */
-    public function addUser(array $userData, ?string $inboundId = null): array
+    public function addClient(array $userData, ?string $inboundId = null): array
     {
         $inboundId = $inboundId ?? $this->inboundId;
 
@@ -219,7 +219,7 @@ class XuiService
      * @param string|null $inboundId
      * @return array
      */
-    public function deleteUser(string $uuid, ?string $inboundId = null): array
+    public function deleteClient(string $uuid, ?string $inboundId = null): array
     {
         $inboundId = $inboundId ?? $this->inboundId;
 
@@ -256,14 +256,14 @@ class XuiService
             'reset'      => $user->reset ?? 0,
         ];
 
-        $existsInXui = $this->getUserByTgId($user->telegram_id, $inboundId);
+        $existsInXui = $this->getClientByTgId($user->telegram_id, $inboundId);
 
         if ($existsInXui) {
             Log::info('Updating existing user -> ' . $user->name);
-            $response = $this->updateUser($userData, $inboundId);
+            $response = $this->updateClient($userData, $inboundId);
         } else {
             Log::info('Creating new user -> ' . $user->name);
-            $response = $this->addUser($userData, $inboundId);
+            $response = $this->addClient($userData, $inboundId);
         }
 
         // You can log or handle the $response as needed.
