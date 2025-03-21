@@ -73,22 +73,22 @@ $users = Xui::getAllClients();
 ```
 
 ### Available Methods
-- getAllClients(?string $inboundId = null): array
+- **getAllClients(?string $inboundId = null): array**
 Retrieves all users (clients) for a given inbound.
 
-- getClientByTgId(int $tgId, ?string $inboundId = null)
+- **getClientByTgId(int $tgId, ?string $inboundId = null)**
 Retrieves a user by their Telegram ID.
 
-- getTrafficByUuid(string $uuid): array
+- **getTrafficByUuid(string $uuid): array**
 Retrieves traffic data for a user based on UUID.
 
-- updateClient(array $userData, ?string $inboundId = null): array
+- **updateClient(array $userData, ?string $inboundId = null): array**
 Updates an existing user. Expects user data with keys such as uuid, email, tgId, etc.
 
-- addClient(array $userData, ?string $inboundId = null): array
+- **addClient(array $userData, ?string $inboundId = null): array**
 Adds a new user with the given data. A random email or UUID may be generated if not provided.
 
-- deleteClient(string $uuid, ?string $inboundId = null): array
+- **deleteClient(string $uuid, ?string $inboundId = null): array**
 Deletes an existing user based on their UUID.
 
 - reSync($user, ?string $inboundId = null): void

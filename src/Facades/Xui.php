@@ -5,18 +5,16 @@ namespace TimBogdanov\Xui\Facades;
 use Illuminate\Support\Facades\Facade;
 
 /**
- * Class Xui
+ * Class XuiService
  *
- * @method static array getAllClients(?string $inboundId = null)
- * @method static array getClientByTgId(int $tgId, ?string $inboundId = null)
- * @method static array getTrafficByUuid(string $uuid)
- * @method static array updateClient(array $userData, ?string $inboundId = null)
- * @method static array addClient(array $userData, ?string $inboundId = null)
- * @method static array deleteClient(string $uuid, ?string $inboundId = null)
- * @method static void reSync($user, ?string $inboundId = null)
- *
- * @see \TimBogdanov\Xui\XuiService
+ * @method static array indexClients(?string $inboundId = null) Retrieves all clients for a given inbound.
+ * @method static array showClientByTgId(int $tgId, ?string $inboundId = null) Retrieves a client by their Telegram ID.
+ * @method static array getClientTraffic(string $uuid) Retrieves traffic data for a client based on UUID.
+ * @method static array updateClient(array $clientData, ?string $inboundId = null) Updates an existing client.
+ * @method static array storeClient(array $clientData, ?string $inboundId = null) Creates a new client.
+ * @method static array destroyClient(string $uuid, ?string $inboundId = null) Deletes an existing client based on UUID.
  */
+
 class Xui extends Facade
 {
     protected static function getFacadeAccessor()
