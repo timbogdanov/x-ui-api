@@ -1,6 +1,6 @@
 {
     "name": "timbogdanov/xui",
-    "description": "Laravel package to handle 3x‑ui panel connections",
+    "description": "Laravel package to handle x‑ui panel connections",
     "type": "library",
     "license": "MIT",
     "autoload": {
@@ -24,6 +24,6 @@
             }
         }
     },
-    "minimum-stability": "dev",
+    "minimum-stability": "stable",
     "prefer-stable": true
 }
